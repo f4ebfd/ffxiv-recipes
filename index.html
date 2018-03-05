@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<!-- Copyright... what copyright? Do whatever you wish with it. -->
+<!-- Or use CC0 if you need a license: https://creativecommons.org/publicdomain/zero/1.0/ -->
+
+<html>
+<head>
+<title>FFXIV Recipe Nonsense</title>
+
+<style>
+  p.btn { border: 1px solid black; margin-right: 0.5em; cursor: pointer; display: inline; padding: 0.25em 0.5em; }
+  p.btn:hover { color: white; background-color: black; }
+  hr { border: 1px solid #aaa; line-height: 0; }
+
+  #levelList { border: 1px solid black; margin: 0.5em 1em; float: left; width:30%; height:30%; overflow:auto;
+    min-width: 30%; min-height: 480px; max-height: 480px; }
+  #craftList { border: 1px solid black; margin: 0.5em 1em; float: left; width:30%; height:30%; overflow:auto;
+    min-width: 30%; min-height: 480px; max-height: 480px; }
+  #recipe { margin: 0.5em 1em; float:left; width: 30%; height: 30%; overflow: auto;
+    min-width: 30%; min-height: 480px; max-height: 480px; }
+
+  p.item { margin: 0.5em 0.125em; cursor: pointer; }
+  p.item:hover { background-color: #aaa; }
+  p.mat { margin: 0.5em 0.125em; }
+
+  .btnall, .btnnone { margin-right: 1em; padding: 0.2em 0.2em; border: 1px solid black; }
+  .btnall:hover, .btnnone:hover { background-color: #aaa; }
+  .btnlv { padding-left: 1em; padding-right: 1em; background-color: #ddd; }
+  .btnlv:hover { background-color: #aaa; }
+  p.rlist { margin: 0.5em 0.125em; cursor: pointer; }
+
+  smol { font-size: 70%; }
+</style>
+
+<script src="items.js"></script>
+<script src="recipes.js"></script>
+
+<script>
+function chooseCrafter(crafter) {
+  var types = document.getElementById('levelList');
+
+  var str = "";
+  for (var i = 0; i < 70; i += 5) {
+    var baseLev = (Math.floor(i / 5) * 5 + 1);
+    var call = 'onClick="buildRecipeList(' + crafter + ',' + baseLev + ');"';
+    var all = 'onClick="checkAll(' + crafter + ',' + baseLev + ');"';
+    var none = 'onClick="checkNone(' + crafter + ',' + baseLev + ');"';
+    str += '<p class="rlist">' +
+      '<span class="btnall"' + all + '>all</span>' +
+      '<span class="btnnone"' + none + '>none</span>' +
+      '<span class="btnlv"' + call + '>' + (i+1) + '-' + (i+5) + '</span>' +
+      '</p>';
+  }
+
+  types.innerHTML = str;
+
+  buildRecipeList(crafter, 1);
+}
+
+var lastCrafter = 0;
+var lastLevel = 0;
+var recipeList = [ ];
+
+function buildRecipeList(crafter, level) {
+  var items = document.getElementById('craftList');
+
+  var str = "";
+  recipeList = [ ];
+  for (var i = level; i <= level + 4; i++) {
+    for (var j = 0; j < recipes.length; j++) {
+      if (recipes[j].crafter != crafter) continue;
+      if (recipes[j].level != i) continue;
+
+      var name = recipes[j].name;
+      recipeList[recipeList.length] = recipes[j];
+
+      var call = 'onClick="checkRecipe(' + (recipeList.length - 1) + ');"';
+      var mouse = ' onMouseOver="showRecipe(' + j + ');"';
+      var check = '&#9744;';
+      if (recipes[j].checked == true) check = '&#9745;';
+      str += '<p class="item" ' + call + mouse + '>' + check + ' Lv' + i + ' ' + name + '</p>';
+    }
+  }
+
+  lastLevel = level;
+  lastCrafter = crafter;
+
+  items.innerHTML = str;
+}
+
+function showRecipe(r) {
+  var el = document.getElementById('recipe');
+
+  var str = '<h3>' + recipes[r].name + '</h3>';
+  str += '<p>Level ' + recipes[r].level;
+  for (var i = 0; i < recipes[r].mats.length; i++) {
+    str += '<br>' + recipes[r].mats[i].count + '&#215; ' +
+      items[recipes[r].mats[i].index];
+  }
+  str += '</p>';
+
+  el.innerHTML = str;
+}
+
+function checkRecipe(r) {
+  if (r >= recipeList.length) return;
+
+  if (recipeList[r].checked == true) recipeList[r].checked = false;
+  else recipeList[r].checked = true;
+
+  buildRecipeList(lastCrafter, lastLevel);
+  buildMaterialList();
+}
+
+function checkAllWith(crafter, level, what) {
+  for (var i = level; i <= level + 4; i++) {
+    for (var j = 0; j < recipes.length; j++) {
+      if (recipes[j].crafter != crafter) continue;
+      if (recipes[j].level != i) continue;
+
+      recipes[j].checked = what;
+    }
+  }
+
+  buildRecipeList(crafter, level);
+  buildMaterialList();
+}
+
+function checkAll(crafter, level) { checkAllWith(crafter, level, true); }
+function checkNone(crafter, level) { checkAllWith(crafter, level, false); }
+
+var materials = { };
+
+function buildMaterialList() {
+  var el = document.getElementById('matList');
+
+  var materials = { };
+  var str = '<h2>Material List</h2>';
+  var total = 0;
+  for (var i = 0; i < recipes.length; i++) {
+    if (recipes[i].checked != true) continue;
+    total++;
+
+    for (var j = 0; j < recipes[i].mats.length; j++) {
+      var mat = recipes[i].mats[j].index;
+      var count = recipes[i].mats[j].count;
+
+      mat = items[mat];
+      if (materials[mat] === undefined) materials[mat] = 0;
+      materials[mat] += count;
+    }
+  }
+
+  var o = Object.keys(materials);
+  str += '<p class="smol">' + total + ' recipes, ' + o.length + ' materials.</p>';
+
+  for (var i = 0; i < o.length; i++) {
+    str += '<p class="mat">' + materials[o[i]] + '&#215; ' + o[i] + '</p>';
+  }
+
+  el.innerHTML = str;
+}
+
+function clearAll() {
+  for (var i = 0; i < recipes.length; i++) {
+    recipes[i].checked = false;
+  }
+  buildRecipeList(lastCrafter, lastLevel);
+  buildMaterialList();
+}
+</script>
+
+</head>
+
+<body>
+
+<div style="text-align: center;">
+  <p class="btn" onClick="clearAll();">CLEAR</p>
+  <p class="btn" onClick="chooseCrafter(0);">Carpenter</p>
+  <p class="btn" onClick="chooseCrafter(1);">Blacksmith</p>
+  <p class="btn" onClick="chooseCrafter(2);">Armorer</p>
+  <p class="btn" onClick="chooseCrafter(3);">Goldsmith</p>
+  <p class="btn" onClick="chooseCrafter(4);">Leatherworker</p>
+  <p class="btn" onClick="chooseCrafter(5);">Weaver</p>
+  <p class="btn" onClick="chooseCrafter(6);">Alchemist</p>
+  <p class="btn" onClick="chooseCrafter(7);">Culinarian</p>
+</div>
+
+<hr>
+
+<div id="levelList"></div>
+<div id="craftList"></div>
+<div id="recipe"></div>
+
+<hr style="clear: left;">
+
+<div id="matList"></div>
+
+<script>chooseCrafter(0);</script>
+
+</body>
+</html>
